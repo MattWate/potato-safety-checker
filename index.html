@@ -118,22 +118,14 @@
         potatoUpload.addEventListener('change', (event) => {
             const file = event.target.files[0];
             if (file) {
-                // Display the file name
                 fileNameDisplay.textContent = file.name;
-
-                // Create a FileReader to read the image
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    // Show the image preview
                     imagePreview.src = e.target.result;
                     imagePreviewContainer.classList.remove('hidden');
-
-                    // Store the image data in Base64 format, removing the prefix
                     base64ImageData = e.target.result.split(',')[1];
                 };
                 reader.readAsDataURL(file);
-
-                // Reset previous results
                 resultsContainer.classList.add('hidden');
                 resultContent.innerHTML = '';
             }
@@ -145,14 +137,12 @@
                 alert("Please upload an image first.");
                 return;
             }
-
-            // Show the results container and the loading spinner
             resultsContainer.classList.remove('hidden');
             loadingSpinner.classList.remove('hidden');
-            resultContent.innerHTML = ''; // Clear previous results
+            resultContent.innerHTML = '';
 
             try {
-                // This is where we call the AI model
+                // This now calls our secure Netlify Function
                 const analysis = await getAIPotatoAnalysis(base64ImageData);
                 displayResults(analysis);
             } catch (error) {
@@ -163,91 +153,40 @@
                     signs: []
                 });
             } finally {
-                // Hide the loading spinner
                 loadingSpinner.classList.add('hidden');
             }
         });
 
         /**
-         * Simulates calling a generative AI model to analyze the potato image.
+         * Calls our secure Netlify Function to analyze the potato image.
          * @param {string} imageData - The Base64 encoded image data.
          * @returns {Promise<object>} A promise that resolves with the analysis object.
          */
         async function getAIPotatoAnalysis(imageData) {
-            // The prompt guides the AI on how to analyze the image and what format to respond in.
-            const prompt = `
-                Analyze the provided image of a potato and determine if it is safe to eat.
-                Look for these specific signs: greening, sprouting, rot/blight, and major blemishes.
-                Based on your findings, provide a clear verdict: "Safe to Eat", "Use with Caution", or "Do Not Eat".
-                Provide a concise explanation for your verdict.
-                List the specific warning signs you detected. If no signs are found, the list should be empty.
-            `;
+            // The endpoint for our Netlify function
+            const functionUrl = '/.netlify/functions/analyze';
 
-            const payload = {
-              contents: [
-                    {
-                        role: "user",
-                        parts: [
-                            { text: prompt },
-                            {
-                                inlineData: {
-                                    mimeType: "image/png", // Assuming PNG, but could be dynamic
-                                    data: imageData
-                                }
-                            }
-                        ]
-                    }
-                ],
-                // We define a JSON schema to get a structured response from the model.
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "OBJECT",
-                        properties: {
-                            "verdict": { "type": "STRING", "description": "Can be 'Safe to Eat', 'Use with Caution', or 'Do Not Eat'." },
-                            "explanation": { "type": "STRING" },
-                            "signs": {
-                                "type": "ARRAY",
-                                "items": { "type": "STRING" }
-                            }
-                        },
-                        required: ["verdict", "explanation", "signs"]
-                    }
-                }
-            };
-            
-            const apiKey = ""; // API key will be automatically provided by the environment
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            const response = await fetch(functionUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageData: imageData }) // Send the image data in the body
+            });
 
-            // Make the API call with exponential backoff for retries
-            let response;
-            let attempts = 0;
-            const maxAttempts = 5;
-            while (attempts < maxAttempts) {
-                try {
-                    response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (response.ok) {
-                        const result = await response.json();
-                         if (result.candidates && result.candidates.length > 0 &&
-                            result.candidates[0].content && result.candidates[0].content.parts &&
-                            result.candidates[0].content.parts.length > 0) {
-                            const jsonText = result.candidates[0].content.parts[0].text;
-                            return JSON.parse(jsonText);
-                        }
-                    }
-                } catch (error) {
-                    console.warn(`Attempt ${attempts + 1} failed. Retrying...`, error);
-                }
-                attempts++;
-                await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempts) * 1000));
+            if (!response.ok) {
+                throw new Error(`Function call failed with status: ${response.status}`);
             }
 
-            throw new Error("Failed to get a valid response from the AI model after several attempts.");
+            const result = await response.json();
+            
+            // The function returns the full API response, so we extract the analysis part
+            if (result.candidates && result.candidates.length > 0 &&
+                result.candidates[0].content && result.candidates[0].content.parts &&
+                result.candidates[0].content.parts.length > 0) {
+                const jsonText = result.candidates[0].content.parts[0].text;
+                return JSON.parse(jsonText);
+            } else {
+                throw new Error("Invalid response structure from AI model.");
+            }
         }
 
 
@@ -258,7 +197,6 @@
         function displayResults(analysis) {
             let verdictColorClass, verdictIcon;
 
-            // Determine color and icon based on the verdict
             switch (analysis.verdict) {
                 case "Safe to Eat":
                     verdictColorClass = 'bg-green-100 border-green-500 text-green-800';
@@ -277,7 +215,6 @@
                     verdictIcon = `<svg class="w-8 h-8 mr-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>`;
             }
 
-            // Build the HTML for the result card
             let signsHTML = '';
             if (analysis.signs && analysis.signs.length > 0) {
                 signsHTML = `
