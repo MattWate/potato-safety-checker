@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Potato Safety Checker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom styles for the file input */
+        .file-input-label {
+            transition: all 0.2s ease-in-out;
+        }
+        .file-input-label:hover {
+            background-color: #38a169; /* darker green */
+        }
+        /* Spinner animation */
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #48bb78; /* green-500 */
+            animation: spin 1s linear infinite;
+        }
+        /* Result card animation */
+        .result-card {
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeIn 0.5s forwards;
+        }
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 sm:p-6 md:p-8 max-w-3xl">
+        <!-- Header Section -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl sm:text-5xl font-bold text-green-800">Potato Safety Checker</h1>
+            <p class="mt-2 text-lg text-gray-600">Is your spud a stud or a dud? Upload a photo to find out!</p>
+        </header>
+
+        <main>
+            <!-- Upload Section -->
+            <div class="bg-white rounded-xl shadow-lg p-6 md:p-8 mb-8 text-center">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-700">1. Upload Your Potato Photo</h2>
+                <input type="file" id="potato-upload" class="hidden" accept="image/*">
+                <label for="potato-upload" class="file-input-label cursor-pointer inline-block bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-colors">
+                    Choose an Image
+                </label>
+                <p id="file-name" class="mt-4 text-gray-500">No file selected.</p>
+            </div>
+
+            <!-- Image Preview and Analysis Trigger -->
+            <div id="image-preview-container" class="bg-white rounded-xl shadow-lg p-6 md:p-8 mb-8 hidden">
+                 <h2 class="text-2xl font-semibold mb-4 text-gray-700 text-center">2. Your Potato</h2>
+                <div class="flex justify-center mb-6">
+                    <img id="image-preview" src="#" alt="Your uploaded potato" class="max-w-full h-auto max-h-80 rounded-lg shadow-md"/>
+                </div>
+                <div class="text-center">
+                    <button id="analyze-button" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+                        Analyze Potato
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results-container" class="hidden">
+                 <h2 class="text-2xl font-semibold mb-4 text-gray-700 text-center">3. Analysis Result</h2>
+                <!-- Spinner -->
+                <div id="loading-spinner" class="flex justify-center items-center py-10 hidden">
+                    <div class="spinner"></div>
+                    <p class="ml-4 text-lg text-gray-600">Analyzing your potato...</p>
+                </div>
+                <!-- Result Content -->
+                <div id="result-content"></div>
+                 <!-- Disclaimer -->
+                <div class="mt-8 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-lg">
+                    <h4 class="font-bold">Disclaimer</h4>
+                    <p>This analysis is AI-generated and for informational purposes only. It is not a substitute for professional food safety advice. Always use your own judgment, check for bad smells and mushy textures, and remember: **when in doubt, throw it out.**</p>
+                </div>
+            </div>
+        </main>
+
+        <footer class="text-center mt-12 text-gray-500 text-sm">
+            <p>&copy; 2024 Spud Inspector. All Rights Reserved.</p>
+        </footer>
+    </div>
+
+    <script>
+        // --- DOM Element References ---
+        const potatoUpload = document.getElementById('potato-upload');
+        const fileNameDisplay = document.getElementById('file-name');
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+        const imagePreview = document.getElementById('image-preview');
+        const analyzeButton = document.getElementById('analyze-button');
+        const resultsContainer = document.getElementById('results-container');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const resultContent = document.getElementById('result-content');
+
+        let base64ImageData = null;
+
+        // --- Event Listener for File Input ---
+        potatoUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                // Display the file name
+                fileNameDisplay.textContent = file.name;
+
+                // Create a FileReader to read the image
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    // Show the image preview
+                    imagePreview.src = e.target.result;
+                    imagePreviewContainer.classList.remove('hidden');
+
+                    // Store the image data in Base64 format, removing the prefix
+                    base64ImageData = e.target.result.split(',')[1];
+                };
+                reader.readAsDataURL(file);
+
+                // Reset previous results
+                resultsContainer.classList.add('hidden');
+                resultContent.innerHTML = '';
+            }
+        });
+
+        // --- Event Listener for Analyze Button ---
+        analyzeButton.addEventListener('click', async () => {
+            if (!base64ImageData) {
+                alert("Please upload an image first.");
+                return;
+            }
+
+            // Show the results container and the loading spinner
+            resultsContainer.classList.remove('hidden');
+            loadingSpinner.classList.remove('hidden');
+            resultContent.innerHTML = ''; // Clear previous results
+
+            try {
+                // This is where we call the AI model
+                const analysis = await getAIPotatoAnalysis(base64ImageData);
+                displayResults(analysis);
+            } catch (error) {
+                console.error("Error during analysis:", error);
+                displayResults({
+                    verdict: "Error",
+                    explanation: "Sorry, something went wrong during the analysis. Please try again.",
+                    signs: []
+                });
+            } finally {
+                // Hide the loading spinner
+                loadingSpinner.classList.add('hidden');
+            }
+        });
+
+        /**
+         * Simulates calling a generative AI model to analyze the potato image.
+         * @param {string} imageData - The Base64 encoded image data.
+         * @returns {Promise<object>} A promise that resolves with the analysis object.
+         */
+        async function getAIPotatoAnalysis(imageData) {
+            // The prompt guides the AI on how to analyze the image and what format to respond in.
+            const prompt = `
+                Analyze the provided image of a potato and determine if it is safe to eat.
+                Look for these specific signs: greening, sprouting, rot/blight, and major blemishes.
+                Based on your findings, provide a clear verdict: "Safe to Eat", "Use with Caution", or "Do Not Eat".
+                Provide a concise explanation for your verdict.
+                List the specific warning signs you detected. If no signs are found, the list should be empty.
+            `;
+
+            const payload = {
+              contents: [
+                    {
+                        role: "user",
+                        parts: [
+                            { text: prompt },
+                            {
+                                inlineData: {
+                                    mimeType: "image/png", // Assuming PNG, but could be dynamic
+                                    data: imageData
+                                }
+                            }
+                        ]
+                    }
+                ],
+                // We define a JSON schema to get a structured response from the model.
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "verdict": { "type": "STRING", "description": "Can be 'Safe to Eat', 'Use with Caution', or 'Do Not Eat'." },
+                            "explanation": { "type": "STRING" },
+                            "signs": {
+                                "type": "ARRAY",
+                                "items": { "type": "STRING" }
+                            }
+                        },
+                        required: ["verdict", "explanation", "signs"]
+                    }
+                }
+            };
+            
+            const apiKey = ""; // API key will be automatically provided by the environment
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            // Make the API call with exponential backoff for retries
+            let response;
+            let attempts = 0;
+            const maxAttempts = 5;
+            while (attempts < maxAttempts) {
+                try {
+                    response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                         if (result.candidates && result.candidates.length > 0 &&
+                            result.candidates[0].content && result.candidates[0].content.parts &&
+                            result.candidates[0].content.parts.length > 0) {
+                            const jsonText = result.candidates[0].content.parts[0].text;
+                            return JSON.parse(jsonText);
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`Attempt ${attempts + 1} failed. Retrying...`, error);
+                }
+                attempts++;
+                await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempts) * 1000));
+            }
+
+            throw new Error("Failed to get a valid response from the AI model after several attempts.");
+        }
+
+
+        /**
+         * Displays the analysis results on the page.
+         * @param {object} analysis - The analysis object from the AI.
+         */
+        function displayResults(analysis) {
+            let verdictColorClass, verdictIcon;
+
+            // Determine color and icon based on the verdict
+            switch (analysis.verdict) {
+                case "Safe to Eat":
+                    verdictColorClass = 'bg-green-100 border-green-500 text-green-800';
+                    verdictIcon = `<svg class="w-8 h-8 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+                    break;
+                case "Use with Caution":
+                    verdictColorClass = 'bg-yellow-100 border-yellow-500 text-yellow-800';
+                    verdictIcon = `<svg class="w-8 h-8 mr-3 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`;
+                    break;
+                case "Do Not Eat":
+                    verdictColorClass = 'bg-red-100 border-red-500 text-red-800';
+                    verdictIcon = `<svg class="w-8 h-8 mr-3 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+                    break;
+                default: // Error case
+                    verdictColorClass = 'bg-gray-100 border-gray-500 text-gray-800';
+                    verdictIcon = `<svg class="w-8 h-8 mr-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>`;
+            }
+
+            // Build the HTML for the result card
+            let signsHTML = '';
+            if (analysis.signs && analysis.signs.length > 0) {
+                signsHTML = `
+                    <h4 class="font-semibold mt-4 mb-2">Detected Warning Signs:</h4>
+                    <ul class="list-disc list-inside space-y-1">
+                        ${analysis.signs.map(sign => `<li>${sign}</li>`).join('')}
+                    </ul>
+                `;
+            }
+
+            resultContent.innerHTML = `
+                <div class="result-card bg-white rounded-xl shadow-lg p-6 md:p-8">
+                    <div class="border-l-4 p-4 ${verdictColorClass}">
+                        <div class="flex items-center">
+                            ${verdictIcon}
+                            <span class="text-2xl font-bold">${analysis.verdict}</span>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-gray-700">
+                        <p>${analysis.explanation}</p>
+                        ${signsHTML}
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+
+</body>
+</html>
