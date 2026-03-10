@@ -19,8 +19,8 @@ exports.handler = async function (event) {
     return { statusCode: 400, body: 'No image data provided.' };
   }
 
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-
+ const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  
   // The same prompt and schema from the original HTML file
   const prompt = `
       Analyze the provided image of a potato and determine if it is safe to eat.
@@ -92,3 +92,4 @@ exports.handler = async function (event) {
     };
   }
 };
+
