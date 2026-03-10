@@ -19,7 +19,7 @@ exports.handler = async function (event) {
     return { statusCode: 400, body: 'No image data provided.' };
   }
 
-const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent?key=${apiKey}`;
+const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
   
   // The same prompt and schema from the original HTML file
   const prompt = `
@@ -92,5 +92,6 @@ const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3
     };
   }
 };
+
 
 
